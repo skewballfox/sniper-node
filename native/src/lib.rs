@@ -9,11 +9,11 @@ use sniper_core::sniper::*;
 declare_types! {
     pub class JsSniper for Sniper {
         init(mut cx) {
-            let config_path = cx.argument::<JsString>(0)?.value();
-            let language = cx.argument::<JsString>(1)?.value();
-            let mut this=Sniper::new(&config_path);
-            this.set_language(&language);
-        Ok(this)
+            let config_path: Handle<JsString> = cx.argument::<JsString>(0)?;
+            let language: Handle<JsString> = cx.argument::<JsString>(1)?;
+            let mut this=Sniper::new(&config_path.value());
+            this.set_language(&language.value());
+            Ok(this)
         }
         //TODO:Define some sort of behavior
         /*method set_target(mut cx) {
