@@ -1,13 +1,13 @@
 
 
-/**
-* @param {string} config
-* @param {string} language
-* @returns {Sniper | undefined}
-*/
 export declare class Sniper {
-    constructor(config?: string | undefined);
-}
-//declare namespace Sniper { }
+    ['constructor']: typeof Sniper;
+    constructor(config?: string | undefined, language?: string | undefined);
 
-export default Sniper;
+    get(attribute: string): string;
+}
+
+//export = Sniper;
+//export default Sniper;
+
+
