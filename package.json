@@ -14,9 +14,11 @@
     "neon-cli": "^0.5.0"
   },
   "devDependencies": {
+    "electron-build-env": "^0.2.0",
     "eslint": "^7.12.1"
   },
   "scripts": {
-    "install": "neon build"
+    "install": "neon build",
+    "build": "electron-build-env options --electron 9.3.5 neon build"
   }
 }

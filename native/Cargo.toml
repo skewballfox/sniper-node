@@ -19,5 +19,5 @@ neon-build = "0.5.0"
 #walkdir = "2.3.1"
 
 [dependencies]
-sniper-core = { path = "../../sniper-core"}
+sniper-core = { git = "https://github.com/skewballfox/Sniper-Core" }
 neon = "0.5.0"
