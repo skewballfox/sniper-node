@@ -10,15 +10,13 @@
   },
   "author": "Joshua Ferguson <joshua.ferguson.273@gmail.com>",
   "license": "Apache-2.0",
-  "dependencies": {
-    "neon-cli": "^0.5.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "neon build": "^0.2.0",
     "eslint": "^7.12.1"
   },
   "scripts": {
-    "install": "neon build",
-    "build": "electron-build-env options --electron 9.3.5 neon build"
+    "install": "cargo build",
+    "build": "cargo build"
   }
 }
