@@ -1,6 +1,6 @@
 
 
-export declare class Sniper {
+declare class Sniper {
     ['constructor']: typeof Sniper;
     constructor(config?: string | undefined);
 
@@ -8,6 +8,6 @@ export declare class Sniper {
 }
 
 //export = Sniper;
-//export default Sniper;
+export = Sniper;
 
 
