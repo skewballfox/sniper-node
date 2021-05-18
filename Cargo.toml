@@ -3,12 +3,12 @@ name = "sniper-node"
 version = "0.1.0"
 authors = ["Joshua Ferguson <joshua.ferguson.273@gmail.com>"]
 license = "Apache-2.0"
-build = "build.rs"
+#build = "build.rs"
 edition = "2018"
 exclude = ["artifacts.json", "index.node"]
 
 [lib]
-name = "sniper_node"
+name = "sniper-node"
 crate-type = ["cdylib"]
 
 [build-dependencies]
