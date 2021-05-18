@@ -15,13 +15,13 @@ declare class Sniper {
 //import addon = require('../index.node');
 //import { promisify } from 'util';
 
-//export as namespace sniper;
+export as namespace sniper;
 //export =add_target, drop_target, get_snippet, get_triggers;
-export default function add_target(session_id: string, uri: string, language: string): void;
+export function add_target(session_id: string, uri: string, language: string): void;
 
-export default function drop_target(session_id: string, uri: string, language: string): void;
-export default function get_snippet(language: string, snippet_key: string): Promise<[string]>;
-export default function get_triggers(session_id: string, uri: string): Promise<[string]>;
+export function drop_target(session_id: string, uri: string, language: string): void;
+export function get_snippet(language: string, snippet_key: string): Promise<[string]>;
+export function get_triggers(session_id: string, uri: string): Promise<[string]>;
 
 // export = {
 //     add_target,
