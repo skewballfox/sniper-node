@@ -687,7 +687,6 @@ name = "sniper-node"
 version = "0.1.0"
 dependencies = [
  "neon",
- "neon-build",
  "once_cell",
  "sniper-common",
 ]
