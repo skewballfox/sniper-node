@@ -12,13 +12,15 @@ declare class Sniper {
 //export = Sniper;
 
 
+//import addon = require('../index.node');
 
-declare module sniper {
-    type add_target=(session_id: string,uri:string , language: string) => void;
-    type drop_target=(session_id: string,uri:string , language: string)=> void;
-    type get_snippet=(language: string,snippet_key:string)=> Promise<Array<string>>;
-    type get_triggers=(session_id: string,uri:string)=> Promise<Array<string>>;
-}
+export as namespace sniper;
+//export =add_target, drop_target, get_snippet, get_triggers;
+export declare function add_target(session_id: string, uri: string, language: string): void;
+export declare function drop_target(session_id: string, uri: string, language: string): void;
+export declare function get_snippet(language: string, snippet_key: string): Promise<Array<string>>;
+export declare function get_triggers(session_id: string, uri: string): Promise<Array<string>>;
 
-export=sniper;
+
+//export =sniper;
 
