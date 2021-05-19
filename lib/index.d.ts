@@ -15,7 +15,7 @@ declare class Sniper {
 //import addon = require('../index.node');
 //import { promisify } from 'util';
 
-export as namespace sniper;
+//export as namespace sniper;
 //export =add_target, drop_target, get_snippet, get_triggers;
 export function add_target(session_id: string, uri: string, language: string): void;
 
