@@ -8,19 +8,14 @@ use neon::prelude::*;
 use neon::register_module;
 use once_cell::sync::OnceCell;
 use sniper_common::{
-    client::{
-        init_client,
-        tarpc_context, //re-exports
-        tokio,
-    }, //defined functions
+    client::{init_client, tarpc_context, tokio},
     service::SniperServiceClient,
-}; //tarpc generated
+};
 
 #[derive(Debug)]
 pub struct SniperNodeClient {
     client: Arc<Mutex<SniperServiceClient>>,
     queue: Arc<EventQueue>,
-    rt: Box<tokio::runtime::Handle>,
 }
 impl Finalize for SniperNodeClient {}
 
@@ -32,25 +27,11 @@ impl SniperNode {
 
 }
 */
+
 static RT: OnceCell<Box<tokio::runtime::Handle>> = OnceCell::new();
-static Q: OnceCell<Arc<Mutex<EventQueue>>> = OnceCell::new();
-static HANDLER: OnceCell<Arc<Mutex<SniperServiceClient>>> = OnceCell::new();
 
 fn get_rt() -> &'static Box<tokio::runtime::Handle> {
     match RT.get() {
-        Some(it) => it,
-        _ => unreachable!(),
-    }
-}
-fn get_queue() -> &'static Arc<Mutex<EventQueue>> {
-    match Q.get() {
-        Some(it) => it,
-        _ => unreachable!(),
-    }
-}
-
-fn get_client() -> &'static Arc<Mutex<SniperServiceClient>> {
-    match HANDLER.get() {
         Some(it) => it,
         _ => unreachable!(),
     }
@@ -69,20 +50,19 @@ pub fn init(mut cx: FunctionContext) -> JsResult<JsBox<SniperNodeClient>> {
     let rt_handle = rt.handle().clone();
 
     //RT.set(Box::new(rt_handle)).unwrap();
-    //Q.set(queue).unwrap();
-    //HANDLER.set(Arc::new(Mutex::new(client))).unwrap();
-    //println!("{:#?}",INSTANCE.get());
+
     Ok(cx.boxed(SniperNodeClient {
         client: Arc::new(Mutex::new(client)),
         queue,
-        rt: Box::new(rt_handle),
     }))
 }
 
 //TODO: needs some kind of target blacklist for situation
 //where target isn't viable
 //TODO: find a way to cache client connection that doesn't lead to connection reset
+
 //TODO: find a way to cache queue and RT that doesn't lead to runtime hang
+//this link may be helpful: https://github.com/neon-bindings/neon/issues/560
 
 //let config_path = cx.argument::<JsString>(0)?.value(&mut cx);
 //Ok(cx.boxed(SniperNode { sniper:Sniper::new(&config_path) }))
@@ -97,7 +77,7 @@ fn add_target(mut cx: FunctionContext) -> JsResult<JsUndefined> {
 
     println!("nope here");
 
-    //let rt=sniper.rt.as_ref();
+    //let rt=get_rt.as_ref();
     //let client_lock=sniper.client.clone();
     //let rt=get_rt().as_ref();
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -121,7 +101,7 @@ fn drop_target(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     let language = cx.argument::<JsString>(2).unwrap().value(&mut cx);
     //let handler=global_handler();
     println!("dropping target");
-    //let client=get_client();
+
     //let rt=get_rt();
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async move {
@@ -237,7 +217,7 @@ fn get_snippet(mut cx: FunctionContext) -> JsResult<JsUndefined> {
 #[neon::main]
 fn main(mut cx: ModuleContext) -> NeonResult<()> {
     //m.export_class("sniperNode",sniperNode)?;
-    cx.export_function("init", init)?;
+    //cx.export_function("init", init)?;
     cx.export_function("add_target", add_target)?;
     cx.export_function("drop_target", drop_target)?;
     cx.export_function("get_triggers", get_triggers)?;
