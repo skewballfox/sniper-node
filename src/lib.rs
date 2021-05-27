@@ -82,55 +82,37 @@ fn drop_target(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     Ok(cx.undefined())
 }
 
-fn get_completions(mut cx: FunctionContext) -> JsResult<JsUndefined> {
-    let callback = cx
-        .argument::<JsFunction>(3)?
-        // Root the function so it can moved to the async block
-        .root(&mut cx);
-    let queue = cx.queue();
-    //let queue=get_queue().lock().unwrap();
-
-    let session_id = cx.argument::<JsString>(0)?.value(&mut cx).clone();
-    let uri = cx.argument::<JsString>(1)?.value(&mut cx).clone();
-    let input = cx.argument::<JsString>(2)?.value(&mut cx).into_bytes();
+fn get_completions(mut cx: FunctionContext) -> JsResult<JsArray> {
+    let session_id = cx.argument::<JsString>(0).unwrap().value(&mut cx).clone();
+    let uri = cx.argument::<JsString>(1).unwrap().value(&mut cx).clone();
+    let input = cx
+        .argument::<JsString>(2)
+        .unwrap()
+        .value(&mut cx)
+        .into_bytes();
     //let rt=get_rt();
 
-    RT.block_on(async move {
+    let completions = RT.block_on(async move {
         //let client=get_client().lock().unwrap();
         let client = init_client().await;
         println!("got client");
-        let completions = client
+        client
             .get_completions(tarpc_context(), session_id, uri, input)
             .await
-            .unwrap();
-        println!("{:?}", completions);
+            .unwrap()
 
         //let queue=get_queue().lock().unwrap();
-        queue.send(move |mut cx| {
-            // "Un-root" the callback
-            let callback = callback.into_inner(&mut cx);
-
-            let jscompletions = JsArray::new(&mut cx, completions.len() as u32);
-            for (i, obj) in completions.iter().enumerate() {
-                let value = JsString::new(&mut cx, obj);
-                jscompletions.set(&mut cx, i as u32, value).unwrap();
-            }
-
-            // Pieces of data required to invoke the callback
-            let this = cx.undefined();
-            let args = vec![
-                // This is a Node style callback where the first argument is the error
-                // Even though this code is infallible, using this format allows us
-                // more easily promisify from JavaScript
-                cx.null().upcast::<JsValue>(),
-                jscompletions.upcast::<JsValue>(),
-            ];
-
-            callback.call(&mut cx, this, args)?;
-            Ok(())
-        });
     });
-    Ok(cx.undefined())
+    let jscompletions = JsArray::new(&mut cx, completions.len() as u32);
+    completions
+        .iter()
+        .enumerate()
+        .into_iter()
+        .for_each(|(i, obj)| {
+            let value = JsString::new(&mut cx, obj);
+            jscompletions.set(&mut cx, i as u32, value).unwrap();
+        });
+    Ok(jscompletions)
 }
 
 fn get_snippet(mut cx: FunctionContext) -> JsResult<JsUndefined> {
