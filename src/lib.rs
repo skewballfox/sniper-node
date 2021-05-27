@@ -92,7 +92,7 @@ fn get_completions(mut cx: FunctionContext) -> JsResult<JsUndefined> {
 
     let session_id = cx.argument::<JsString>(0)?.value(&mut cx).clone();
     let uri = cx.argument::<JsString>(1)?.value(&mut cx).clone();
-    let input = cx.argument::<JsString>(2)?.value(&mut cx).as_bytes();
+    let input = cx.argument::<JsString>(2)?.value(&mut cx).into_bytes();
     //let rt=get_rt();
 
     RT.block_on(async move {
@@ -100,7 +100,7 @@ fn get_completions(mut cx: FunctionContext) -> JsResult<JsUndefined> {
         let client = init_client().await;
         println!("got client");
         let completions = client
-            .get_completions(tarpc_context(), session_id, uri, input.to_vec())
+            .get_completions(tarpc_context(), session_id, uri, input)
             .await
             .unwrap();
         println!("{:?}", completions);
