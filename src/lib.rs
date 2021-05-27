@@ -6,18 +6,11 @@ use std::{
 use neon::event::EventQueue;
 use neon::prelude::*;
 use neon::register_module;
-use once_cell::sync::OnceCell;
+use once_cell::sync::{Lazy, OnceCell};
 use sniper_common::{
     client::{init_client, tarpc_context, tokio},
     service::SniperServiceClient,
 };
-
-#[derive(Debug)]
-pub struct SniperNodeClient {
-    client: Arc<Mutex<SniperServiceClient>>,
-    queue: Arc<EventQueue>,
-}
-impl Finalize for SniperNodeClient {}
 
 //static INSTANCE: OnceCell<SniperNode>=OnceCell::new();
 /*
@@ -28,34 +21,7 @@ impl SniperNode {
 }
 */
 
-static RT: OnceCell<Box<tokio::runtime::Handle>> = OnceCell::new();
-
-fn get_rt() -> &'static Box<tokio::runtime::Handle> {
-    match RT.get() {
-        Some(it) => it,
-        _ => unreachable!(),
-    }
-}
-
-pub fn init(mut cx: FunctionContext) -> JsResult<JsBox<SniperNodeClient>> {
-    println!("starting initialization");
-    let queue = Arc::new(EventQueue::new(&mut cx));
-    println!("initializing runtime");
-    let rt = tokio::runtime::Runtime::new().unwrap();
-
-    println!("connecting to server");
-
-    let client = rt.block_on(async move { init_client().await });
-    //println!("{:#?}",client);
-    let rt_handle = rt.handle().clone();
-
-    //RT.set(Box::new(rt_handle)).unwrap();
-
-    Ok(cx.boxed(SniperNodeClient {
-        client: Arc::new(Mutex::new(client)),
-        queue,
-    }))
-}
+static RT: Lazy<tokio::runtime::Runtime> = Lazy::new(|| tokio::runtime::Runtime::new().unwrap());
 
 //TODO: needs some kind of target blacklist for situation
 //where target isn't viable
@@ -80,8 +46,8 @@ fn add_target(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     //let rt=get_rt.as_ref();
     //let client_lock=sniper.client.clone();
     //let rt=get_rt().as_ref();
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    rt.block_on(async move {
+
+    RT.block_on(async move {
         println!("adding target");
         //let client=client_lock.lock().unwrap().clone();//init_client().await;
         let client = init_client().await;
@@ -104,7 +70,7 @@ fn drop_target(mut cx: FunctionContext) -> JsResult<JsUndefined> {
 
     //let rt=get_rt();
     let rt = tokio::runtime::Runtime::new().unwrap();
-    rt.block_on(async move {
+    RT.block_on(async move {
         let client = init_client().await;
         //let mut client=get_client().lock().unwrap();
         client
@@ -116,9 +82,9 @@ fn drop_target(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     Ok(cx.undefined())
 }
 
-fn get_triggers(mut cx: FunctionContext) -> JsResult<JsUndefined> {
+fn get_completions(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     let callback = cx
-        .argument::<JsFunction>(2)?
+        .argument::<JsFunction>(3)?
         // Root the function so it can moved to the async block
         .root(&mut cx);
     let queue = cx.queue();
@@ -126,29 +92,28 @@ fn get_triggers(mut cx: FunctionContext) -> JsResult<JsUndefined> {
 
     let session_id = cx.argument::<JsString>(0)?.value(&mut cx).clone();
     let uri = cx.argument::<JsString>(1)?.value(&mut cx).clone();
+    let input = cx.argument::<JsString>(2)?.value(&mut cx).as_bytes();
     //let rt=get_rt();
-    let rt = tokio::runtime::Runtime::new().unwrap();
 
-    rt.block_on(async move {
-        println!("trigger block started");
+    RT.block_on(async move {
         //let client=get_client().lock().unwrap();
         let client = init_client().await;
         println!("got client");
-        let triggers = client
-            .get_triggers(tarpc_context(), session_id, uri)
+        let completions = client
+            .get_completions(tarpc_context(), session_id, uri, input.to_vec())
             .await
             .unwrap();
-        println!("{:?}", triggers);
+        println!("{:?}", completions);
 
         //let queue=get_queue().lock().unwrap();
         queue.send(move |mut cx| {
             // "Un-root" the callback
             let callback = callback.into_inner(&mut cx);
 
-            let jstrigs = JsArray::new(&mut cx, triggers.len() as u32);
-            for (i, obj) in triggers.iter().enumerate() {
+            let jscompletions = JsArray::new(&mut cx, completions.len() as u32);
+            for (i, obj) in completions.iter().enumerate() {
                 let value = JsString::new(&mut cx, obj);
-                jstrigs.set(&mut cx, i as u32, value).unwrap();
+                jscompletions.set(&mut cx, i as u32, value).unwrap();
             }
 
             // Pieces of data required to invoke the callback
@@ -158,7 +123,7 @@ fn get_triggers(mut cx: FunctionContext) -> JsResult<JsUndefined> {
                 // Even though this code is infallible, using this format allows us
                 // more easily promisify from JavaScript
                 cx.null().upcast::<JsValue>(),
-                jstrigs.upcast::<JsValue>(),
+                jscompletions.upcast::<JsValue>(),
             ];
 
             callback.call(&mut cx, this, args)?;
@@ -170,18 +135,19 @@ fn get_triggers(mut cx: FunctionContext) -> JsResult<JsUndefined> {
 
 fn get_snippet(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     let callback = cx
-        .argument::<JsFunction>(2)?
+        .argument::<JsFunction>(3)?
         // Root the function so it can moved to the async block
         .root(&mut cx);
     let queue = cx.queue();
     //let client = cx.argument::<JsBox<SniperNode>>(0)?;
-    let language = cx.argument::<JsString>(0)?.value(&mut cx);
-    let snippet_key = cx.argument::<JsString>(1)?.value(&mut cx);
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    rt.block_on(async move {
+    let session_id = cx.argument::<JsString>(0)?.value(&mut cx).clone();
+    let uri = cx.argument::<JsString>(1)?.value(&mut cx).clone();
+    let snippet_key = cx.argument::<JsString>(2)?.value(&mut cx);
+
+    RT.block_on(async move {
         let client = init_client().await;
         let snippet = client
-            .get_snippet(tarpc_context(), language, snippet_key)
+            .get_snippet(tarpc_context(), session_id, uri, snippet_key)
             .await
             .unwrap()
             .unwrap();
@@ -220,7 +186,7 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     //cx.export_function("init", init)?;
     cx.export_function("add_target", add_target)?;
     cx.export_function("drop_target", drop_target)?;
-    cx.export_function("get_triggers", get_triggers)?;
+    cx.export_function("get_completions", get_completions)?;
     cx.export_function("get_snippet", get_snippet)?;
     Ok(())
 }
