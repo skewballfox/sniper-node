@@ -1,7 +1,4 @@
-use std::{
-    cell::RefCell,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use neon::event::EventQueue;
 use neon::prelude::*;
@@ -21,7 +18,10 @@ impl SniperNode {
 }
 */
 
-static RT: Lazy<tokio::runtime::Runtime> = Lazy::new(|| tokio::runtime::Runtime::new().unwrap());
+static RT: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
+    println!("runtime initialized");
+    tokio::runtime::Runtime::new().unwrap()
+});
 
 //TODO: needs some kind of target blacklist for situation
 //where target isn't viable
@@ -103,39 +103,43 @@ fn get_completions(mut cx: FunctionContext) -> JsResult<JsArray> {
 
         //let queue=get_queue().lock().unwrap();
     });
+    //TODO: it might be beneficial to
     let jscompletions = JsArray::new(&mut cx, completions.len() as u32);
     completions
-        .iter()
-        .enumerate()
         .into_iter()
-        .for_each(|(i, obj)| {
-            let value = JsString::new(&mut cx, obj);
-            jscompletions.set(&mut cx, i as u32, value).unwrap();
+        .enumerate()
+        .for_each(|(i, snip_info)| {
+            let completion = JsObject::new(&mut cx);
+            let snip_name = JsString::new(&mut cx, snip_info.name.clone());
+            let snip_description = JsString::new(&mut cx, snip_info.description.clone());
+            completion.set(&mut cx, "name", snip_name);
+            completion.set(&mut cx, "description", snip_description);
+            jscompletions.set(&mut cx, i as u32, completion).unwrap();
         });
     Ok(jscompletions)
 }
 
-fn get_snippet(mut cx: FunctionContext) -> JsResult<JsUndefined> {
-    let callback = cx
-        .argument::<JsFunction>(3)?
-        // Root the function so it can moved to the async block
-        .root(&mut cx);
-    let queue = cx.queue();
+fn get_snippet(mut cx: FunctionContext) -> JsResult<JsArray> {
+    //let callback = cx
+    //    .argument::<JsFunction>(3)?
+    // Root the function so it can moved to the async block
+    //    .root(&mut cx);
+    //let queue = cx.queue();
     //let client = cx.argument::<JsBox<SniperNode>>(0)?;
     let session_id = cx.argument::<JsString>(0)?.value(&mut cx).clone();
     let uri = cx.argument::<JsString>(1)?.value(&mut cx).clone();
     let snippet_key = cx.argument::<JsString>(2)?.value(&mut cx);
-
-    RT.block_on(async move {
+    println!("getting snippet in neon");
+    let snippet = RT.block_on(async move {
         let client = init_client().await;
-        let snippet = client
+        client
             .get_snippet(tarpc_context(), session_id, uri, snippet_key)
             .await
             .unwrap()
-            .unwrap();
-        println!("Snippet: {:?}", snippet);
+            .unwrap()
+        //println!("Snippet: {:?}", snippet);
         //let queue=get_queue().lock().unwrap();
-        queue.send(move |mut cx| {
+        /*queue.send(move |mut cx| {
             // "Un-root" the callback
             let callback = callback.into_inner(&mut cx);
 
@@ -158,8 +162,15 @@ fn get_snippet(mut cx: FunctionContext) -> JsResult<JsUndefined> {
             callback.call(&mut cx, this, args)?;
             Ok(())
         });
+        */
     });
-    Ok(cx.undefined())
+    println!("got snippet from neon: {:#?}", snippet);
+    let jssnippet = JsArray::new(&mut cx, snippet.len() as u32);
+    for (i, obj) in snippet.iter().enumerate() {
+        let value = JsString::new(&mut cx, obj);
+        jssnippet.set(&mut cx, i as u32, value).unwrap();
+    }
+    Ok(jssnippet)
 }
 
 #[neon::main]
